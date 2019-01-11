@@ -8,7 +8,7 @@ class RoutingTest < Minitest::Test
 
   def test_routing_mappings
     index_options = Store.searchkick_index.index_options
-    assert_equal index_options[:mappings][:_default_][:_routing], required: true
+    assert_equal index_options[:mappings][:store][:_routing], required: true
   end
 
   def test_routing_correct_node
@@ -19,5 +19,24 @@ class RoutingTest < Minitest::Test
   def test_routing_incorrect_node
     store_names ["Dollar Tree"], Store
     assert_search "*", ["Dollar Tree"], {routing: "Boom"}, Store
+  end
+
+  def test_routing_async
+    skip unless defined?(ActiveJob)
+
+    with_options(Song, routing: true, callbacks: :async) do
+      store_names ["Dollar Tree"], Song
+      Song.destroy_all
+    end
+  end
+
+  def test_routing_queue
+    skip unless defined?(ActiveJob) && defined?(Redis)
+
+    with_options(Song, routing: true, callbacks: :queue) do
+      store_names ["Dollar Tree"], Song
+      Song.destroy_all
+      Searchkick::ProcessQueueJob.perform_later(class_name: "Song")
+    end
   end
 end

@@ -31,7 +31,9 @@ class WhereTest < Minitest::Test
     assert_search "product", ["Product A"], where: {store_id: 1...2}
     assert_search "product", ["Product A", "Product B"], where: {store_id: [1, 2]}
     assert_search "product", ["Product B", "Product C", "Product D"], where: {store_id: {not: 1}}
+    assert_search "product", ["Product B", "Product C", "Product D"], where: {store_id: {_not: 1}}
     assert_search "product", ["Product C", "Product D"], where: {store_id: {not: [1, 2]}}
+    assert_search "product", ["Product C", "Product D"], where: {store_id: {_not: [1, 2]}}
     assert_search "product", ["Product A"], where: {user_ids: {lte: 2, gte: 2}}
 
     # or
@@ -56,12 +58,15 @@ class WhereTest < Minitest::Test
 
     # any / nested terms
     assert_search "product", ["Product B", "Product C"], where: {user_ids: {not: [2], in: [1, 3]}}
+    assert_search "product", ["Product B", "Product C"], where: {user_ids: {_not: [2], in: [1, 3]}}
 
     # not / exists
     assert_search "product", ["Product D"], where: {user_ids: nil}
     assert_search "product", ["Product A", "Product B", "Product C"], where: {user_ids: {not: nil}}
+    assert_search "product", ["Product A", "Product B", "Product C"], where: {user_ids: {_not: nil}}
     assert_search "product", ["Product A", "Product C", "Product D"], where: {user_ids: [3, nil]}
     assert_search "product", ["Product B"], where: {user_ids: {not: [3, nil]}}
+    assert_search "product", ["Product B"], where: {user_ids: {_not: [3, nil]}}
   end
 
   def test_regexp
@@ -72,6 +77,16 @@ class WhereTest < Minitest::Test
   def test_alternate_regexp
     store_names ["Product A", "Item B"]
     assert_search "*", ["Product A"], where: {name: {regexp: "Pro.+"}}
+  end
+
+  def test_special_regexp
+    store_names ["Product <A>", "Item <B>"]
+    assert_search "*", ["Product <A>"], where: {name: /Pro.+<.+/}
+  end
+
+  def test_prefix
+    store_names ["Product A", "Product B", "Item C"]
+    assert_search "*", ["Product A", "Product B"], where: {name: {prefix: "Pro"}}
   end
 
   def test_where_string
@@ -187,6 +202,22 @@ class WhereTest < Minitest::Test
       {name: "San Antonio", latitude: 29.4167, longitude: -98.5000}
     ]
     assert_search "san", ["San Francisco"], where: {location: {top_left: {lat: 38, lon: -123}, bottom_right: {lat: 37, lon: -122}}}
+  end
+
+  def test_top_right_bottom_left
+    store [
+      {name: "San Francisco", latitude: 37.7833, longitude: -122.4167},
+      {name: "San Antonio", latitude: 29.4167, longitude: -98.5000}
+    ]
+    assert_search "san", ["San Francisco"], where: {location: {top_right: [38, -122], bottom_left: [37, -123]}}
+  end
+
+  def test_top_right_bottom_left_hash
+    store [
+      {name: "San Francisco", latitude: 37.7833, longitude: -122.4167},
+      {name: "San Antonio", latitude: 29.4167, longitude: -98.5000}
+    ]
+    assert_search "san", ["San Francisco"], where: {location: {top_right: {lat: 38, lon: -122}, bottom_left: {lat: 37, lon: -123}}}
   end
 
   def test_multiple_locations
